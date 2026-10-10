@@ -25,6 +25,12 @@ jobs:
       - name: Run package tests before publishing
         run: pnpm -r test
       - name: Publish packages whose version is not on npm yet
+        # 没配 secret 时跳过（否则打 tag 会得到一次无意义的红叉）；配好后重跑即生效。
+        if: ${{ secrets.NPM_TOKEN != '' }}
         run: pnpm -r publish --access public --no-git-checks --report-summary
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Tell the operator when the token is missing
+        if: ${{ secrets.NPM_TOKEN == '' }}
+        run: |
+          echo "::notice title=NPM_TOKEN 未配置::跳过 npm 发布。请在仓库 Settings → Secrets and variables → Actions 添加 NPM_TOKEN（npm Automation token），然后重新运行本 workflow。"
