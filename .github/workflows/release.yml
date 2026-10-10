@@ -14,9 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    # secret 先映射到 job 级 env：GitHub 不允许在 step 的 if 里直接引用 secrets 上下文
+    # secret 先映射到一个**独立**变量名：NODE_AUTH_TOKEN 会被 setup-node 自己占用
+    # （它会写入 github token），拿它做「有没有配 token」的判断会永远成立。
     env:
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      NPM_PUBLISH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       # 版本由 package.json 的 packageManager 决定，这里不要再传 version
@@ -34,8 +35,9 @@ jobs:
         # 用 shell 判断而不是 step 的 if：GitHub 的 env 上下文在 if 里拿不到 job 级 env 的值
         # （未定义会被判成 "不等于空串" 而误跑），也不能直接引用 secrets。
         run: |
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "::notice title=NPM_TOKEN 未配置::跳过 npm 发布。请在仓库 Settings → Secrets and variables → Actions 添加 NPM_TOKEN（npm Automation token 或允许绕过 2FA 的 Granular token），然后重新运行本 workflow。"
+          if [ -z "${NPM_PUBLISH_TOKEN:-}" ]; then
+            echo "::notice title=NPM_TOKEN 未配置::跳过 npm 发布。请在仓库 Settings → Secrets and variables → Actions 添加 NPM_TOKEN（npm Classic Automation token，或允许绕过 2FA 的 Granular token，且要有 read and write 权限），然后重新运行本 workflow。"
             exit 0
           fi
-          pnpm -r publish --access public --no-git-checks --report-summary
+          echo "使用仓库 secret NPM_TOKEN 发布"
+          NODE_AUTH_TOKEN="$NPM_PUBLISH_TOKEN" pnpm -r publish --access public --no-git-checks --report-summary
