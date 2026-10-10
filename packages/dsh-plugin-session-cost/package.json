@@ -1,0 +1,65 @@
+{
+  "name": "dsh-plugin-session-cost",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "description": "按会话统计 token 与金额：输入框下方显示当前会话花费，设置页列出每个会话的花费（含历史会话）。",
+  "license": "MIT",
+  "author": "tangjunfei <tjfzeishuai@163.com>",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "cost",
+    "usage",
+    "tokens",
+    "billing"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json"
+  ],
+  "scripts": {
+    "test": "node --import ./verify/lib/register.mjs verify/fold.test.mjs && node verify/plugin-meta.test.mjs && node verify/client.render.test.mjs",
+    "pack:check": "npm pack --dry-run"
+  },
+  "meta": {
+    "title": "会话消费统计",
+    "description": "按会话统计 token 与金额：输入框下方显示当前会话花费，设置页列出每个会话的花费（含历史会话）。"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=22",
+    "dsh": ">=0.2.0-rc.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

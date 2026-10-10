@@ -1,0 +1,31 @@
+# Bundle 补丁：profile 列出本 bundle 时，把下面这行插入插件树。
+#
+# 这里的 config 是**示例默认值**，也是改价的地方。你在自己的 profile 补丁层里按 id
+# 覆盖时注意：config 是**整体替换、不深合并** —— 覆盖 rates 就要把整张表写全。
+#
+# 单价单位：人民币 / 百万 tokens，取 DeepSeek 官方《模型 & 价格》的**高峰时段价**；
+# 空闲时段 = 高峰 × offPeakFactor（官方为 0.5）。键以 `*` 结尾表示前缀匹配，`*` 为兜底。
+- insert:
+    - id: session-cost-plugin
+      name: dsh-plugin-session-cost
+      config:
+        currency: CNY
+        symbol: ¥
+        decimals: 4
+        timeZone: Asia/Shanghai
+        peakWeekdays: [1, 2, 3, 4, 5]
+        peakWindows: ['09:00-12:00', '14:00-18:00']
+        offPeakFactor: 0.5
+        # 法定节假日无法凭空推算：把日期列在这里，当天整天按空闲价计。
+        holidays: []
+        refreshSeconds: 5
+        persistedCacheSeconds: 600
+        includeSubagents: true
+        rates:
+          deepseek-flash: { cacheHit: 0.04, cacheMiss: 2, output: 8 }
+          deepseek-v4-flash: { cacheHit: 0.04, cacheMiss: 2, output: 8 }
+          deepseek-v4-flash-vision-exp: { cacheHit: 0.04, cacheMiss: 2, output: 8 }
+          'deepseek-v4.1-flash*': { cacheHit: 0.04, cacheMiss: 2, output: 8 }
+          deepseek-v4-pro: { cacheHit: 0.3, cacheMiss: 9, output: 27 }
+          deepseek-chat: { cacheHit: 0.5, cacheMiss: 2, output: 8 }
+          deepseek-reasoner: { cacheHit: 1, cacheMiss: 4, output: 16 }

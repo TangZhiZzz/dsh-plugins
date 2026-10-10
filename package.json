@@ -1,0 +1,18 @@
+{
+  "name": "dsh-plugins",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DeepSeek Harness (DSH) 插件集合：每个插件一个 packages/* 子包，可单独发布到 npm。",
+  "license": "MIT",
+  "author": "tangjunfei <tjfzeishuai@163.com>",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "pnpm -r test",
+    "pack:check": "pnpm -r pack:check",
+    "release": "pnpm -r publish --access public"
+  }
+}

@@ -1,0 +1,16 @@
+# 依赖与构建产物
+node_modules/
+.pnpm-store/
+dist/
+*.tgz
+
+# 本地验证产物：包含真实会话标题/金额，**不要提交**（npm 包也不包含 verify/）
+# 注意带斜杠的模式会被锚定到本文件所在目录，所以要用 **/ 前缀匹配任意层级
+**/verify/summary.json
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

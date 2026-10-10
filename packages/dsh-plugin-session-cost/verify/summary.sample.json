@@ -1,0 +1,265 @@
+{
+  "ok": true,
+  "generatedAt": 1791540590449,
+  "currency": "CNY",
+  "symbol": "¥",
+  "decimals": 4,
+  "timeZone": "Asia/Shanghai",
+  "pricing": {
+    "source": "DeepSeek 官方公开价（高峰时段价 / 百万 tokens），空闲时段按 offPeakFactor 折扣",
+    "peakWindows": [
+      "09:00-12:00",
+      "14:00-18:00"
+    ],
+    "peakWeekdays": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "offPeakFactor": 0.5,
+    "holidays": [],
+    "patterns": [
+      "deepseek-flash",
+      "deepseek-v4-flash",
+      "deepseek-v4-flash-vision-exp",
+      "deepseek-v4.1-flash*",
+      "deepseek-v4-pro",
+      "deepseek-chat",
+      "deepseek-reasoner"
+    ],
+    "fallback": null
+  },
+  "totals": {
+    "sessions": 3,
+    "liveSessions": 1,
+    "calls": 1163,
+    "pricedCalls": 2489,
+    "unpricedCalls": 0,
+    "usageMissingCalls": 7,
+    "cost": 15.721275,
+    "tokens": {
+      "cacheHit": 456891264,
+      "cacheMiss": 2240610,
+      "cacheWrite": 0,
+      "output": 2101144,
+      "total": 461233018
+    },
+    "costs": {
+      "cacheHit": 15.308392999999997,
+      "cacheMiss": 4.240145,
+      "cacheWrite": 0,
+      "output": 15.018272
+    },
+    "unpricedModels": [],
+    "aux": {
+      "title": 27,
+      "search": 91,
+      "other": 0
+    }
+  },
+  "sessions": [
+    {
+      "id": "session-sample-1",
+      "title": "示例：重构构建脚本",
+      "cwd": "C:\\work\\demo-app",
+      "createdAt": 1789708415744,
+      "origin": null,
+      "parentSession": null,
+      "agentPreset": "standard",
+      "live": true,
+      "persisted": true,
+      "stale": false,
+      "calls": 527,
+      "pricedCalls": 527,
+      "unpricedCalls": 0,
+      "usageMissingCalls": 0,
+      "cost": 5.510541,
+      "costs": {
+        "cacheHit": 3.673902,
+        "cacheMiss": 0.256711,
+        "cacheWrite": 0,
+        "output": 1.579928
+      },
+      "priced": true,
+      "unpricedModels": [],
+      "tokens": {
+        "cacheHit": 115596672,
+        "cacheMiss": 174431,
+        "cacheWrite": 0,
+        "output": 288302,
+        "total": 116059405
+      },
+      "byModel": {
+        "deepseek-flash": {
+          "provider": "deepseek-official",
+          "calls": 527,
+          "cost": 5.510541,
+          "costs": {
+            "cacheHit": 3.673902,
+            "cacheMiss": 0.256711,
+            "cacheWrite": 0,
+            "output": 1.579928
+          },
+          "priced": true,
+          "unpricedCalls": 0,
+          "pattern": "deepseek-flash",
+          "tiers": {
+            "offPeak": 320,
+            "peak": 207
+          },
+          "tokens": {
+            "cacheHit": 115596672,
+            "cacheMiss": 174431,
+            "cacheWrite": 0,
+            "output": 288302,
+            "total": 116059405
+          }
+        }
+      },
+      "aux": {
+        "title": 1,
+        "search": 0,
+        "other": 0
+      },
+      "firstTime": 1789708415779,
+      "lastActive": 1789953004340
+    },
+    {
+      "id": "session-sample-2",
+      "title": "示例：排查接口超时",
+      "cwd": "C:\\work\\demo-app",
+      "createdAt": 1789693818299,
+      "origin": null,
+      "parentSession": null,
+      "agentPreset": "standard",
+      "live": false,
+      "persisted": true,
+      "stale": false,
+      "calls": 324,
+      "pricedCalls": 321,
+      "unpricedCalls": 0,
+      "usageMissingCalls": 3,
+      "cost": 5.446377,
+      "costs": {
+        "cacheHit": 2.520384,
+        "cacheMiss": 0.168221,
+        "cacheWrite": 0,
+        "output": 2.757772
+      },
+      "priced": true,
+      "unpricedModels": [],
+      "tokens": {
+        "cacheHit": 86291072,
+        "cacheMiss": 103950,
+        "cacheWrite": 0,
+        "output": 420560,
+        "total": 86815582
+      },
+      "byModel": {
+        "deepseek-flash": {
+          "provider": "deepseek-official",
+          "calls": 324,
+          "cost": 5.446377,
+          "costs": {
+            "cacheHit": 2.520384,
+            "cacheMiss": 0.168221,
+            "cacheWrite": 0,
+            "output": 2.757772
+          },
+          "priced": true,
+          "unpricedCalls": 3,
+          "pattern": "deepseek-flash",
+          "tiers": {
+            "peak": 210,
+            "offPeak": 111
+          },
+          "tokens": {
+            "cacheHit": 86291072,
+            "cacheMiss": 103950,
+            "cacheWrite": 0,
+            "output": 420560,
+            "total": 86815582
+          }
+        }
+      },
+      "aux": {
+        "title": 1,
+        "search": 2,
+        "other": 0
+      },
+      "firstTime": 1789693818323,
+      "lastActive": 1789708325053
+    },
+    {
+      "id": "session-sample-3",
+      "title": "示例：写单元测试",
+      "cwd": "D:\\projects\\sample-lib",
+      "createdAt": 1788921649056,
+      "origin": null,
+      "parentSession": null,
+      "agentPreset": "standard",
+      "live": false,
+      "persisted": true,
+      "stale": false,
+      "calls": 312,
+      "pricedCalls": 312,
+      "unpricedCalls": 0,
+      "usageMissingCalls": 0,
+      "cost": 4.764357,
+      "costs": {
+        "cacheHit": 2.624049,
+        "cacheMiss": 0.382804,
+        "cacheWrite": 0,
+        "output": 1.757504
+      },
+      "priced": true,
+      "unpricedModels": [],
+      "tokens": {
+        "cacheHit": 70311040,
+        "cacheMiss": 197072,
+        "cacheWrite": 0,
+        "output": 227322,
+        "total": 70735434
+      },
+      "byModel": {
+        "deepseek-v4.1-flash-expires-on-0910": {
+          "provider": "deepseek-official",
+          "calls": 312,
+          "cost": 4.764357,
+          "costs": {
+            "cacheHit": 2.624049,
+            "cacheMiss": 0.382804,
+            "cacheWrite": 0,
+            "output": 1.757504
+          },
+          "priced": true,
+          "unpricedCalls": 0,
+          "pattern": "deepseek-v4.1-flash*",
+          "tiers": {
+            "peak": 285,
+            "offPeak": 27
+          },
+          "tokens": {
+            "cacheHit": 70311040,
+            "cacheMiss": 197072,
+            "cacheWrite": 0,
+            "output": 227322,
+            "total": 70735434
+          }
+        }
+      },
+      "aux": {
+        "title": 1,
+        "search": 3,
+        "other": 0
+      },
+      "firstTime": 1788921649074,
+      "lastActive": 1788927663086
+    }
+  ],
+  "errors": [],
+  "refreshMs": 5000,
+  "configWarnings": []
+}

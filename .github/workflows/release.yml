@@ -1,0 +1,30 @@
+name: Release to npm
+
+# 打 tag（v*）时把 packages/* 里版本号尚未发布过的包发布到 npm。
+# 需要仓库 secret：NPM_TOKEN（npmjs.com 的 Automation token）。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Run package tests before publishing
+        run: pnpm -r test
+      - name: Publish packages whose version is not on npm yet
+        run: pnpm -r publish --access public --no-git-checks --report-summary
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Session Cost",
+    "description": "Per-session token usage and spend: a live badge under the composer plus a settings page listing every session (archived ones included)."
+  }
+}
