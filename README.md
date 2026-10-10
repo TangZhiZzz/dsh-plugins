@@ -88,7 +88,7 @@ CI 用 `NPM_TOKEN` 提交后，版本会先进**暂存区**（新包名会先出
 | 版本 | 时间 | 说明 |
 |---|---|---|
 | [`dsh-plugin-session-cost@1.0.0`](https://www.npmjs.com/package/dsh-plugin-session-cost/v/1.0.0) | 2026-10-10 | 首个版本：输入框下方实时金额徽标 + 点击弹框明细 + 设置页「会话消费」面板（含已归档会话） |
-| `dsh-plugin-session-cost@1.1.0` | 待发布 | 新增 agent 工具 `session_cost`（同一行内注册，与路由共用同一份取数与定价）；取数拆成「只读当前会话」与「整个语料」两条路径（徽标不再折叠全部会话）；新增 service/tool 两组单测（共 63 项） |
+| [`dsh-plugin-session-cost@1.1.0`](https://www.npmjs.com/package/dsh-plugin-session-cost/v/1.1.0) | 2026-10-10 | 新增 agent 工具 `session_cost`（同一行内注册，与路由共用同一份取数与定价）；取数拆成「只读当前会话」与「整个语料」两条路径（徽标不再折叠全部会话）；排序按钮选中态；共 64 项单测。线上 tarball 与仓库逐字节一致 |
 
 ## 隐私与产物
 
