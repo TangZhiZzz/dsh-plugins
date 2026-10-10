@@ -72,6 +72,23 @@ git tag v1.0.0 && git push origin v1.0.0
 
 同一版本号不能重复发布：改包内 `package.json` 的 `version` 后再发。
 
+### 发布时会遇到的一步：staged publishing
+
+npm 现在对 token 发布启用了 [staged publishing](https://docs.npmjs.com/staged-publishing)：
+CI 用 `NPM_TOKEN` 提交后，版本会先进**暂存区**（新包名会先出现一个公共占位版本 `0.0.0-stage`），
+需要维护者用 **2FA 批准**才会正式上架。批准方式：
+
+- 网页：npmjs.com → 头像 → **Packages → Staged Packages** → 找到版本 → **Approve**
+- 命令行（npm ≥ 11.15）：`npm stage list` → `npm stage approve <stage-id>`（会要求 2FA）
+
+批准前 `npm view <包名> version` 只会看到 `0.0.0-stage`，批准后才变成真实版本。
+
+## 发布记录
+
+| 版本 | 时间 | 说明 |
+|---|---|---|
+| [`dsh-plugin-session-cost@1.0.0`](https://www.npmjs.com/package/dsh-plugin-session-cost/v/1.0.0) | 2026-10-10 | 首个版本：输入框下方实时金额徽标 + 点击弹框明细 + 设置页「会话消费」面板（含已归档会话） |
+
 ## 隐私与产物
 
 - `verify/summary.json` 是本机抓取的端点快照，包含**真实会话标题与金额**：已被 `.gitignore` 排除，
