@@ -2,6 +2,7 @@ name: Release to npm
 
 # 打 tag（v*）时把 packages/* 里版本号尚未发布过的包发布到 npm。
 # 需要仓库 secret：NPM_TOKEN（npmjs.com 的 Automation token）。
+# 没配 secret 时本 workflow 会跳过发布并给出 notice，不会变红。
 on:
   push:
     tags:
@@ -13,24 +14,26 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    # secret 先映射到 job 级 env：GitHub 不允许在 step 的 if 里直接引用 secrets 上下文
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      # 版本由 package.json 的 packageManager 决定，这里不要再传 version
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
       - name: Run package tests before publishing
         run: pnpm -r test
       - name: Publish packages whose version is not on npm yet
-        # 没配 secret 时跳过（否则打 tag 会得到一次无意义的红叉）；配好后重跑即生效。
-        if: ${{ secrets.NPM_TOKEN != '' }}
+        if: ${{ env.NODE_AUTH_TOKEN != '' }}
         run: pnpm -r publish --access public --no-git-checks --report-summary
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Tell the operator when the token is missing
-        if: ${{ secrets.NPM_TOKEN == '' }}
+        if: ${{ env.NODE_AUTH_TOKEN == '' }}
         run: |
           echo "::notice title=NPM_TOKEN 未配置::跳过 npm 发布。请在仓库 Settings → Secrets and variables → Actions 添加 NPM_TOKEN（npm Automation token），然后重新运行本 workflow。"
