@@ -15,6 +15,15 @@
     "tokens",
     "billing"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TangZhiZzz/dsh-plugins.git",
+    "directory": "packages/dsh-plugin-session-cost"
+  },
+  "homepage": "https://github.com/TangZhiZzz/dsh-plugins/tree/main/packages/dsh-plugin-session-cost",
+  "bugs": {
+    "url": "https://github.com/TangZhiZzz/dsh-plugins/issues"
+  },
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
@@ -29,7 +38,8 @@
   ],
   "scripts": {
     "test": "node --import ./verify/lib/register.mjs verify/fold.test.mjs && node verify/plugin-meta.test.mjs && node verify/client.render.test.mjs",
-    "pack:check": "npm pack --dry-run"
+    "pack:check": "npm pack --dry-run",
+    "prepublishOnly": "pnpm test"
   },
   "meta": {
     "title": "会话消费统计",

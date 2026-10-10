@@ -3,6 +3,10 @@
 [DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/guide/quickstart)（DSH）插件集合。
 每个插件是一个独立的 npm 包，放在 `packages/*`，可以单独安装、单独发布，互不影响。
 
+```bash
+git clone https://github.com/TangZhiZzz/dsh-plugins.git
+```
+
 ## 插件清单
 
 | 包名 | 显示名 | 作用 |
