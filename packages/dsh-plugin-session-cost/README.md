@@ -99,7 +99,7 @@ node --check index.js; node --check client.js
 node -e "JSON.parse(require('node:fs').readFileSync('package.json','utf8')); console.log('manifest ok')"
 
 # 单元测试 / 显示名 / 渲染冒烟（等价于 pnpm test）
-node --import ./verify/lib/register.mjs verify/fold.test.mjs
+node verify/fold.test.mjs
 node verify/plugin-meta.test.mjs
 node verify/client.render.test.mjs
 
@@ -175,7 +175,7 @@ plugin_manager { action: "remove_bundle", target: "dsh-plugin-session-cost" }
 | 验证 | 命令 | 结果 |
 |---|---|---|
 | Host/Client 语法 | `node --check index.js && node --check client.js` | 通过 |
-| 纯逻辑单测（归一化、价目匹配、峰谷、折叠、金额拆分、非法配置） | `node --import ./verify/lib/register.mjs verify/fold.test.mjs` | **18/18 通过** |
+| 纯逻辑单测（归一化、价目匹配、峰谷、折叠、金额拆分、非法配置） | `node verify/fold.test.mjs` | **18/18 通过**（没有安装 peer `@deepseek-ai/schemastery` 时最后 1 条会 skip，插件本身照常工作） |
 | 显示名解析（复刻宿主 `readPluginMeta`，两条读取路径） | `node verify/plugin-meta.test.mjs` | **5/5 通过** —— 中文名 `会话消费统计` / 英文 `Session Cost`，不再回落包名 |
 | 客户端渲染冒烟（真实 React 语义的迷你渲染器 + 真实端点数据） | `node verify/client.render.test.mjs` | **17/17 通过**（含窄徽标、点击弹框、无关闭按钮 + 点外部/Esc 关闭、**与宿主 token 用量表逐条同款的样式断言**、K/M 紧凑数字） |
 | 端到端金额交叉验证（独立 Python 实现直接解 `~/.dsh/sessions/**/session*.jsonl.zstd`） | `python verify/verify_costs.py` | **28/28 会话逐项一致，PASS** |
@@ -222,4 +222,3 @@ output / 每个会话的 cost 全部逐项相等 —— 说明金额不是实现
 | `verify/verify_costs.py` | 独立 Python 交叉验证（直读 `.jsonl.zstd`） |
 | `verify/summary.json` | 本机端点响应的快照（**含真实会话标题，已 gitignore，也不进 npm 包**），渲染测试与对账用 |
 | `verify/summary.sample.json` | 匿名样例快照，仓库内与无本机数据时使用 |
-| `verify/lib/*.mjs` | 离线测试时把 `@deepseek-ai/schemastery` 指到已安装 profile 的 resolve hook（仅测试用） |

@@ -1,8 +1,8 @@
 /**
  * 纯逻辑单测：token 归一化、价目匹配、高峰/空闲判定、会话折叠与金额。
  *
- * 运行：
- *   node --import ./verify/lib/register.mjs verify/fold.test.mjs
+ * 运行（在包目录内）：node verify/fold.test.mjs
+ * 或经 workspace：pnpm -C packages/dsh-plugin-session-cost test
  */
 
 import assert from 'node:assert/strict'

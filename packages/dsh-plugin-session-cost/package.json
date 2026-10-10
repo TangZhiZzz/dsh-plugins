@@ -37,7 +37,7 @@
     "locale/*.json"
   ],
   "scripts": {
-    "test": "node --import ./verify/lib/register.mjs verify/fold.test.mjs && node verify/plugin-meta.test.mjs && node verify/client.render.test.mjs",
+    "test": "node verify/fold.test.mjs && node verify/plugin-meta.test.mjs && node verify/client.render.test.mjs",
     "pack:check": "npm pack --dry-run",
     "prepublishOnly": "pnpm test"
   },
