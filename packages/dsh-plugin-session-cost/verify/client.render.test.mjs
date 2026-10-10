@@ -430,6 +430,65 @@ check('面板：过滤框输入后只留匹配的会话', async () => {
   root.dispose()
 })
 
+check('面板：排序按钮有明确选中态，点击后换序且选中态跟着切换', async () => {
+  const buttonsOf = (tree) => {
+    const found = {}
+    walk(tree, (node) => {
+      if (node.type !== 'button') return
+      const label = textOf(node)
+      if (label === '按金额' || label === '按最近') found[label] = node
+    })
+    return found
+  }
+  const amountsOf = (tree) => {
+    const amounts = []
+    walk(tree, (node) => {
+      if (node.props?.className !== 'dsh-sc__row') return
+      const nums = []
+      walk(node, (child) => { if (child.props?.className === 'dsh-sc__num') nums.push(textOf(child)) })
+      amounts.push(nums[nums.length - 1])
+    })
+    return amounts
+  }
+
+  const { root, tree } = await render(panel.component, panel.options.inject())
+  const before = buttonsOf(tree)
+  assert.ok(before['按金额'] && before['按最近'], '面板必须有「按金额」「按最近」两个排序按钮')
+
+  // 选中态必须是「一眼看得出」的：底色 + 边框 + 内描边 + 文字色 + 字重，五个信号都要在。
+  const active = before['按金额'].props.style
+  const idle = before['按最近'].props.style
+  assert.equal(before['按金额'].props['aria-pressed'], 'true', '默认应选中「按金额」')
+  assert.equal(before['按最近'].props['aria-pressed'], 'false')
+  assert.equal(active.fontWeight, 600, '选中态必须加粗（即使主题色相近也看得出）')
+  assert.equal(active.background, 'var(--dsw-alias-bg-layer-2)', '选中态要有底色')
+  assert.equal(active.borderColor, 'var(--dsw-alias-brand-primary)')
+  assert.equal(active.boxShadow, 'inset 0 0 0 1px var(--dsw-alias-brand-primary)', '选中态要有内描边')
+  assert.equal(active.color, 'var(--dsw-alias-brand-primary)')
+  assert.notEqual(active.color, idle.color, '选中与未选中的文字色必须不同')
+  assert.notEqual(active.fontWeight, idle.fontWeight)
+  assert.equal(idle.fontWeight, undefined, '未选中态不加粗')
+
+  // 点「按最近」：选中态交换 + 行序真的变成按最近活跃
+  before['按最近'].props.onClick()
+  const after = await root.flush()
+  const then = buttonsOf(after)
+  assert.equal(then['按最近'].props['aria-pressed'], 'true', '点击后「按最近」应选中')
+  assert.equal(then['按金额'].props['aria-pressed'], 'false')
+  assert.equal(then['按最近'].props.style.fontWeight, 600)
+  assert.equal(then['按金额'].props.style.fontWeight, undefined)
+
+  const byCost = payload.sessions.slice().sort((a, b) => (b.cost - a.cost) || ((b.lastActive ?? 0) - (a.lastActive ?? 0)))
+  const byTime = payload.sessions.slice().sort((a, b) => ((b.lastActive ?? 0) - (a.lastActive ?? 0)) || (b.cost - a.cost))
+  const shown = amountsOf(after)
+  assert.equal(shown.length, payload.sessions.length)
+  assert.deepEqual(shown, byTime.map((row) => money(row.cost, payload.symbol, payload.decimals)), '行序应为「按最近」')
+  if (byCost[0].id !== byTime[0].id) {
+    assert.notDeepEqual(shown, byCost.map((row) => money(row.cost, payload.symbol, payload.decimals)), '换序应真的改变行的顺序')
+  }
+  root.dispose()
+})
+
 check('收尾：样式标签已插入，轮询 effect 都有清理函数', async () => {
   assert.ok(styleTags.length >= 1, 'apply 里应插入一次组件样式')
   const { root } = await render(panel.component, panel.options.inject())

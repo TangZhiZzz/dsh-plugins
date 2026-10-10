@@ -199,8 +199,14 @@ window.__ModuleLoader__.load({
         cursor: 'pointer',
       },
       buttonActive: {
+        // 选中态要"一眼看得出"：底色 + 边框 + 内描边 + 文字色 + 字重，五个独立信号。
+        // 只换 borderColor/color 是不够的 —— 品牌色与正文色在深色主题下很接近，
+        // 1px 边框的色差几乎看不出来（用户实测反馈"没有选中效果"）。
+        background: 'var(--dsw-alias-bg-layer-2)',
         borderColor: 'var(--dsw-alias-brand-primary)',
+        boxShadow: 'inset 0 0 0 1px var(--dsw-alias-brand-primary)',
         color: 'var(--dsw-alias-brand-primary)',
+        fontWeight: 600,
       },
       input: {
         border: '1px solid var(--dsw-alias-border-l2)',
@@ -507,11 +513,13 @@ window.__ModuleLoader__.load({
         h('button', {
           type: 'button',
           style: sort === 'cost' ? { ...S.button, ...S.buttonActive } : S.button,
+          'aria-pressed': sort === 'cost' ? 'true' : 'false',
           onClick: () => setSort('cost'),
         }, t('sortCost')),
         h('button', {
           type: 'button',
           style: sort === 'time' ? { ...S.button, ...S.buttonActive } : S.button,
+          'aria-pressed': sort === 'time' ? 'true' : 'false',
           onClick: () => setSort('time'),
         }, t('sortTime')),
         h('span', { style: { flex: 1 } }),
