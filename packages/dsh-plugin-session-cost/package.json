@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-session-cost",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "main": "index.js",
   "description": "按会话统计 token 与金额：输入框下方显示当前会话花费，设置页列出每个会话的花费（含历史会话）。",
@@ -26,18 +26,20 @@
   },
   "exports": {
     ".": "./index.js",
+    "./tools": "./tools.js",
     "./client": "./client.js",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "index.js",
+    "tools.js",
     "client.js",
     "cordis.patch.yml",
     "locale/*.json"
   ],
   "scripts": {
-    "test": "node verify/fold.test.mjs && node verify/plugin-meta.test.mjs && node verify/client.render.test.mjs",
+    "test": "node verify/fold.test.mjs && node verify/tools.test.mjs && node verify/plugin-meta.test.mjs && node verify/client.render.test.mjs",
     "pack:check": "npm pack --dry-run",
     "prepublishOnly": "pnpm test"
   },
@@ -62,14 +64,21 @@
     "dsh": ">=0.2.0-rc.1"
   },
   "peerDependencies": {
+    "@deepseek-ai/dsh-tools": "*",
     "@deepseek-ai/schemastery": "*"
   },
   "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    },
     "@deepseek-ai/schemastery": {
       "optional": true
     }
   },
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2"
   }
 }

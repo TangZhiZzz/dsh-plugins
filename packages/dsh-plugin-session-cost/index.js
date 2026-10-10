@@ -50,7 +50,7 @@ export const inject = ['sessionQuery', 'webServer']
 export const ROUTE_PATH = '/dsh-session-cost/summary'
 
 /** 官方公开价（人民币 / 百万 tokens，高峰时段）。键支持 `前缀*` 匹配，`*` 为兜底。 */
-const DEFAULT_RATES = {
+export const DEFAULT_RATES = {
   'deepseek-flash': { cacheHit: 0.04, cacheMiss: 2, output: 8 },
   'deepseek-v4-flash': { cacheHit: 0.04, cacheMiss: 2, output: 8 },
   'deepseek-v4-flash-vision-exp': { cacheHit: 0.04, cacheMiss: 2, output: 8 },

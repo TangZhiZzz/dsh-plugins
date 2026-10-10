@@ -212,13 +212,46 @@ output / 每个会话的 cost 全部逐项相等 —— 说明金额不是实现
 
 | 文件 | 作用 |
 |---|---|
-| `index.js` | Host 半：`sessionQuery` 折叠 + 价目表 + `GET /dsh-session-cost/summary`（loopback/受信 Host 栅栏） |
+| `index.js` | Host 半（第一行）：`sessionQuery` 折叠 + 价目表 + `GET /dsh-session-cost/summary`（loopback/受信 Host 栅栏） |
+| `tools.js` | Host 半（**第二行**，子路径 `./tools`）：给 agent 的 `session_cost` 工具；独立 Config、独立启停 |
 | `client.js` | Client 半：`conversation.composer.dock` 窄徽标 + `shell.overlay` 明细弹框 + `settings.section` 面板（只用 `--dsw-alias-*` 主题 token） |
-| `cordis.patch.yml` | bundle 补丁行 `session-cost-plugin`，也是改价的示例位置 |
+| `cordis.patch.yml` | bundle 补丁：**两行**（`session-cost-plugin` / `session-cost-tools`），也是改价的示例位置 |
 | `package.json` / `locale/*.json` | manifest、显示文案（中/英） |
-| `verify/fold.test.mjs` | 18 项纯逻辑单测 |
+| `verify/fold.test.mjs` | 18 项纯逻辑单测（折叠/计价/峰谷/金额拆分/非法配置） |
+| `verify/tools.test.mjs` | 9 项第二行单测（collect/排序/limit/单会话/失败降级/render/工具注册与参数校验） |
 | `verify/plugin-meta.test.mjs` | 复刻宿主 `readPluginMeta` 校验「插件列表里的中文显示名」 |
-| `verify/client.render.test.mjs` | 12 项客户端渲染冒烟测试（迷你 React 渲染器） |
+| `verify/client.render.test.mjs` | 17 项客户端渲染冒烟测试（迷你 React 渲染器 + 真实/匿名快照） |
 | `verify/verify_costs.py` | 独立 Python 交叉验证（直读 `.jsonl.zstd`） |
 | `verify/summary.json` | 本机端点响应的快照（**含真实会话标题，已 gitignore，也不进 npm 包**），渲染测试与对账用 |
 | `verify/summary.sample.json` | 匿名样例快照，仓库内与无本机数据时使用 |
+
+## 8. 同一个包挂两行：可分别启停、各自配置
+
+一个 npm 包可以在 loader 树里挂**多行**（行 = 可独立启停 / 独立 Config 的最小单位），靠 `exports` 暴露子路径 + 补丁里多插一行：
+
+```jsonc
+// package.json
+"exports": { ".": "./index.js", "./tools": "./tools.js", /* … */ }
+```
+```yaml
+# cordis.patch.yml
+- insert:
+    - id: session-cost-plugin
+      name: dsh-plugin-session-cost          # 第一行：路由 + UI
+    - id: session-cost-tools
+      name: dsh-plugin-session-cost/tools    # 第二行：agent 工具
+      config: { toolName: session_cost, topN: 8 }
+```
+
+效果：
+
+- **插件详情里是两栏**，可以各自启停、各自编辑 config（第二行的 `topN: 8` 就是它自己的值）；
+- 停掉第二行，输入框徽标与设置页面板照常工作；停掉第一行，`session_cost` 工具仍能独立查询；
+- `session_cost` 工具接受 `{ sessionId?, limit? }`：不带参数返回花费最高的 N 个会话，带 `sessionId` 返回该会话明细；金额口径与 UI 完全一致（同一份折叠/计价函数）。
+
+**踩过的两个坑（都实测过）**：
+
+1. 新增 `exports` 子路径后，**运行中的 Host 需要重启**才会认这条行 —— Node 的 ESM 解析器会缓存 `package.json` 内容，旧进程仍按旧 `exports` 解析，报 `PATH_NOT_EXPORTED`（表现为 `application: failed … failed to import`）。全新进程解析是正常的，重启即好。
+2. **一个包只有一个 client 半**（`dsh.client` 是包级字段）。所以「拆行」只能让 **Host 半**独立启停；要让 **UI 组件各自独立启停/独立发布**，得拆成多个包（monorepo 里 `packages/*` 加一个即可）。
+
+子路径行的依赖处理：`tools.js` 里**没有任何静态裸导入**（`@deepseek-ai/dsh-tools` 是 best-effort 动态导入，解析不到就告警并让本行 inert），这样本地 `link:` 安装和 npm 安装都不会因为解析失败而影响第一行。
