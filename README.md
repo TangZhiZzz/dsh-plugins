@@ -1,5 +1,9 @@
 # dsh-plugins
 
+[![CI](https://github.com/TangZhiZzz/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/TangZhiZzz/dsh-plugins/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/dsh-plugin-session-cost?label=dsh-plugin-session-cost)](https://www.npmjs.com/package/dsh-plugin-session-cost)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 [DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/guide/quickstart)（DSH）插件集合。
 每个插件是一个独立的 npm 包，放在 `packages/*`，可以单独安装、单独发布，互不影响。
 

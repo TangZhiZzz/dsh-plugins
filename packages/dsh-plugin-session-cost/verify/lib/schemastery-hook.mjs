@@ -17,6 +17,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const CANDIDATES = [
   process.env.DSH_SCHEMASTERY,
   join(here, '..', '..', 'node_modules', '@deepseek-ai', 'schemastery', 'lib', 'index.mjs'),
+  join(here, '..', '..', '..', 'node_modules', '@deepseek-ai', 'schemastery', 'lib', 'index.mjs'),
   join(homedir(), '.dsh', 'profiles', 'node_modules', '@deepseek-ai', 'schemastery', 'lib', 'index.mjs'),
   join(homedir(), '.dsh', 'profiles', 'web', 'node_modules', '@deepseek-ai', 'schemastery', 'lib', 'index.mjs'),
 ].filter((value) => typeof value === 'string' && value !== '')
