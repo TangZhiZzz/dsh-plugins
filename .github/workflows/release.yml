@@ -31,9 +31,11 @@ jobs:
       - name: Run package tests before publishing
         run: pnpm -r test
       - name: Publish packages whose version is not on npm yet
-        if: ${{ env.NODE_AUTH_TOKEN != '' }}
-        run: pnpm -r publish --access public --no-git-checks --report-summary
-      - name: Tell the operator when the token is missing
-        if: ${{ env.NODE_AUTH_TOKEN == '' }}
+        # 用 shell 判断而不是 step 的 if：GitHub 的 env 上下文在 if 里拿不到 job 级 env 的值
+        # （未定义会被判成 "不等于空串" 而误跑），也不能直接引用 secrets。
         run: |
-          echo "::notice title=NPM_TOKEN 未配置::跳过 npm 发布。请在仓库 Settings → Secrets and variables → Actions 添加 NPM_TOKEN（npm Automation token），然后重新运行本 workflow。"
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::notice title=NPM_TOKEN 未配置::跳过 npm 发布。请在仓库 Settings → Secrets and variables → Actions 添加 NPM_TOKEN（npm Automation token 或允许绕过 2FA 的 Granular token），然后重新运行本 workflow。"
+            exit 0
+          fi
+          pnpm -r publish --access public --no-git-checks --report-summary
