@@ -31,6 +31,19 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Run package tests before publishing
         run: pnpm -r test
+      - name: Probe the npm token (diagnostic)
+        # 只做只读探测：token 能通过 whoami 说明「认证有效」；随后若发布仍 403，
+        # 就说明是 token 权限/2FA-bypass 的问题而不是管道问题。顺带打印长度，
+        # 便于发现复制粘贴带上的空白字符。
+        run: |
+          if [ -z "${NPM_PUBLISH_TOKEN:-}" ]; then
+            echo "NPM_PUBLISH_TOKEN 为空"
+            exit 0
+          fi
+          printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_PUBLISH_TOKEN" > "$RUNNER_TEMP/probe.npmrc"
+          echo "token 长度：${#NPM_PUBLISH_TOKEN}"
+          npm whoami --userconfig "$RUNNER_TEMP/probe.npmrc" \
+            || echo "::warning title=npm token 探测失败::whoami 未通过：token 无效、权限为 No access，或带上了多余空白"
       - name: Publish packages whose version is not on npm yet
         # 用 shell 判断而不是 step 的 if：GitHub 的 env 上下文在 if 里拿不到 job 级 env 的值
         # （未定义会被判成 "不等于空串" 而误跑），也不能直接引用 secrets。
