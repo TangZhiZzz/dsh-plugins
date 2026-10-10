@@ -225,46 +225,72 @@ output / 每个会话的 cost 全部逐项相等 —— 说明金额不是实现
 
 | 文件 | 作用 |
 |---|---|
-| `index.js` | Host 半（第一行）：`sessionQuery` 折叠 + 价目表 + `GET /dsh-session-cost/summary`（loopback/受信 Host 栅栏） |
-| `tools.js` | Host 半（**第二行**，子路径 `./tools`）：给 agent 的 `session_cost` 工具；独立 Config、独立启停 |
+| `index.js` | Host 半：纯逻辑（折叠/计价/峰谷）+ **取数服务** + `GET /dsh-session-cost/summary`（loopback/受信 Host 栅栏） |
+| `tool.js` | agent 工具 `session_cost`：**同一行内**注册（`ctx.inject(['tools'], …)`），与路由共用同一个取数服务 |
 | `client.js` | Client 半：`conversation.composer.dock` 窄徽标 + `shell.overlay` 明细弹框 + `settings.section` 面板（只用 `--dsw-alias-*` 主题 token） |
-| `cordis.patch.yml` | bundle 补丁：**两行**（`session-cost-plugin` / `session-cost-tools`），也是改价的示例位置 |
+| `cordis.patch.yml` | bundle 补丁：**一行**（`session-cost-plugin`），也是改价与工具开关的示例位置 |
 | `package.json` / `locale/*.json` | manifest、显示文案（中/英） |
 | `verify/fold.test.mjs` | 18 项纯逻辑单测（折叠/计价/峰谷/金额拆分/非法配置） |
-| `verify/tools.test.mjs` | 9 项第二行单测（collect/排序/limit/单会话/失败降级/render/工具注册与参数校验） |
+| `verify/service.test.mjs` | 13 项取数服务单测（单会话只读一个会话 / 缓存与单飞 / 并发上限 / 失败降级 / TTL / signal） |
+| `verify/tool.test.mjs` | 10 项工具单测（形状映射 / 渲染 / 注册契约 / 降级 / 端到端同源） |
 | `verify/plugin-meta.test.mjs` | 复刻宿主 `readPluginMeta` 校验「插件列表里的中文显示名」 |
 | `verify/client.render.test.mjs` | 17 项客户端渲染冒烟测试（迷你 React 渲染器 + 真实/匿名快照） |
 | `verify/verify_costs.py` | 独立 Python 交叉验证（直读 `.jsonl.zstd`） |
 | `verify/summary.json` | 本机端点响应的快照（**含真实会话标题，已 gitignore，也不进 npm 包**），渲染测试与对账用 |
 | `verify/summary.sample.json` | 匿名样例快照，仓库内与无本机数据时使用 |
 
-## 8. 同一个包挂两行：可分别启停、各自配置
+## 8. 结构取舍与性能优化
 
-一个 npm 包可以在 loader 树里挂**多行**（行 = 可独立启停 / 独立 Config 的最小单位），靠 `exports` 暴露子路径 + 补丁里多插一行：
+**一个包 = 一行**，这一行里同时提供三样东西：
 
-```jsonc
-// package.json
-"exports": { ".": "./index.js", "./tools": "./tools.js", /* … */ }
 ```
-```yaml
-# cordis.patch.yml
-- insert:
-    - id: session-cost-plugin
-      name: dsh-plugin-session-cost          # 第一行：路由 + UI
-    - id: session-cost-tools
-      name: dsh-plugin-session-cost/tools    # 第二行：agent 工具
-      config: { toolName: session_cost, topN: 8 }
+cordis.patch.yml（1 行）
+└── index.js  apply(ctx, config)
+    ├── GET /dsh-session-cost/summary   ← 取数服务（client.js 轮询它）
+    ├── client.js                       ← 徽标 / 浮层 / 设置页面板
+    └── tool.js  session_cost           ← 同一行内注册的 agent 工具
 ```
 
-效果：
+### 8.1 为什么不拆成两行
 
-- **插件详情里是两栏**，可以各自启停、各自编辑 config（第二行的 `topN: 8` 就是它自己的值）；
-- 停掉第二行，输入框徽标与设置页面板照常工作；停掉第一行，`session_cost` 工具仍能独立查询；
-- `session_cost` 工具接受 `{ sessionId?, limit? }`：不带参数返回花费最高的 N 个会话，带 `sessionId` 返回该会话明细；金额口径与 UI 完全一致（同一份折叠/计价函数）。
+工具曾经单独挂过一行（`exports` 子路径 + 第二行），结论是**不值得**：
 
-**踩过的两个坑（都实测过）**：
+- 两行 = **两份 `rates` 配置**，改价时容易只改一处 → 同一笔消费在 UI 与工具里对不上；
+- 两行 = 取数逻辑两套（或用子路径共享模块，多一层间接）；
+- 插件详情里多一栏，对「一个单一用途的订阅/查询插件」没有实际收益。
 
-1. 新增 `exports` 子路径后，**运行中的 Host 需要重启**才会认这条行 —— Node 的 ESM 解析器会缓存 `package.json` 内容，旧进程仍按旧 `exports` 解析，报 `PATH_NOT_EXPORTED`（表现为 `application: failed … failed to import`）。全新进程解析是正常的，重启即好。
-2. **一个包只有一个 client 半**（`dsh.client` 是包级字段）。所以「拆行」只能让 **Host 半**独立启停；要让 **UI 组件各自独立启停/独立发布**，得拆成多个包（monorepo 里 `packages/*` 加一个即可）。
+现在工具与路由共用**同一个 `createCostService(ctx, cfg)`**，所以金额必然一致；不想要工具时把 Config 的
+`exposeTool` 设为 `false` 即可（每次请求的工具体积随之变小），不需要为它单开一行。
 
-子路径行的依赖处理：`tools.js` 里**没有任何静态裸导入**（`@deepseek-ai/dsh-tools` 是 best-effort 动态导入，解析不到就告警并让本行 inert），这样本地 `link:` 安装和 npm 安装都不会因为解析失败而影响第一行。
+**什么时候才值得拆行/拆包**：
+
+| 需求 | 做法 |
+|---|---|
+| Host 半要独立启停 / 独立配置 | 同包**子路径行**（`exports` 暴露 `./xxx` + 补丁多插一行；宿主自己的 `@deepseek-ai/dsh-plugin-manager` + `…/tools` 就是这形态） |
+| UI 组件要独立启停 / 独立发布 | **拆成多个包**（一个包只有一个 client 半：`dsh.client` 是包级字段） |
+| 只是想少一次请求 / 少一份配置 | 别拆，加一个 Config 开关（像 `exposeTool`） |
+
+### 8.2 取数路径与缓存（本插件的性能要害）
+
+徽标每 5 秒轮询一次，而设置页面板是 15 秒。**早期实现无论问什么都把整个语料折叠一遍** —— 28 个会话、
+每个都要解压读日志，只为显示一个数字。现在两条路径分开：
+
+| 路径 | 谁用 | 行为 |
+|---|---|---|
+| `summary({ sessionId })` | 徽标（5s）、浮层 | **只读那一个会话**；结果按 `refreshMs` 短 TTL 复用；缓存最多 64 条 |
+| `summary()` | 设置页面板（15s）、agent 工具 | 整个语料；历史会话按 `persistedCacheSeconds` 复用折叠结果，live 会话每次重读；**单飞 + TTL** 让多页面/多插槽同时轮询只算一次 |
+
+`verify/service.test.mjs` 把这个性质**钉成了断言**：问一个会话时 `readSession` 只能被调用一次（`['session-a']`），
+并发读取不超过 `readConcurrency`（默认 4）。
+
+另外两处：
+
+- **后台标签页不轮询**：`client.js` 的取数 effect 在 `document.visibilityState === 'hidden'` 时直接返回，
+  回到前台立刻取一次 —— 界面没人看时不烧 CPU/IO。
+- **数字格式统一**：工具文本与 UI 用同一套 `<1e3` 原样 / `K` / `M` 规则，避免同一份数据出现两种读法。
+
+### 8.3 依赖与降级
+
+`tool.js` 里**没有任何静态裸导入**（`@deepseek-ai/dsh-tools` 是 best-effort 动态导入）。解析不到时只打印一条
+告警并跳过工具注册 —— 路由与 UI 完全不受影响。`ctx.inject(['tools'], …)` 保证没有 `tools` 服务的组合里
+插件照样能激活（只是没工具）。

@@ -1,10 +1,8 @@
-# Bundle 补丁：profile 列出本 bundle 时，把下面这些行插入插件树。
+# Bundle 补丁：profile 列出本 bundle 时，把下面这一行插入插件树。
 #
-# 这里插入了**两行**（同一个包的两个入口），它们在插件详情里是两栏，
-# 可以各自启停、各自配置：
-#   1) session-cost-plugin        —— 主行：取数路由 + UI（index.js）
-#   2) session-cost-tools         —— 子路径行：只给 agent 一个 session_cost 工具（tools.js）
-# 停掉第 2 行不影响输入框徽标与设置页面板；反之停掉第 1 行，第 2 行的工具仍可独立查询。
+# 只有一行：HTTP 取数路由、UI 与 agent 的 `session_cost` 工具都在这一行里
+# （工具在 ./tool.js 中注册，与路由共用同一个取数服务，所以两处金额必然一致）。
+# 不想要工具时把下面的 exposeTool 设为 false 即可（每次请求的工具体积随之变小）。
 #
 # 这里的 config 是**示例默认值**，也是改价的地方。你在自己的 profile 补丁层里按 id
 # 覆盖时注意：config 是**整体替换、不深合并** —— 覆盖 rates 就要把整张表写全。
@@ -35,13 +33,8 @@
           deepseek-v4-pro: { cacheHit: 0.3, cacheMiss: 9, output: 27 }
           deepseek-chat: { cacheHit: 0.5, cacheMiss: 2, output: 8 }
           deepseek-reasoner: { cacheHit: 1, cacheMiss: 4, output: 16 }
-    # 第二行：独立启停 / 独立 Config（这里的 topN=8 有意不同于 schema 默认的 5，
-    # 用来证明这一行的 config 是单独生效的）。
-    - id: session-cost-tools
-      name: dsh-plugin-session-cost/tools
-      config:
+        # agent 工具（同一行内）：topN=8 是我按自己习惯调的默认值，与 schema 默认的 5 不同。
+        exposeTool: true
         toolName: session_cost
         topN: 8
-        includeSubagents: true
-        symbol: ¥
-        decimals: 4
+        readConcurrency: 4

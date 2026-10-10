@@ -269,6 +269,9 @@ window.__ModuleLoader__.load({
         let alive = true
         const controller = new AbortController()
         const load = async () => {
+          // 后台标签页不轮询：界面不可见时没人看这个数字，别白烧 CPU/IO。
+          // 回到前台会立刻取一次（下面的 visibilitychange）。
+          if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
           try {
             const data = await fetchSummary(sid, controller.signal)
             if (alive) setState({ data, error: null })
@@ -280,10 +283,15 @@ window.__ModuleLoader__.load({
         }
         void load()
         const timer = setInterval(load, intervalMs)
+        const onVisible = () => {
+          if (typeof document !== 'undefined' && document.visibilityState === 'visible') void load()
+        }
+        document?.addEventListener?.('visibilitychange', onVisible)
         return () => {
           alive = false
           controller.abort()
           clearInterval(timer)
+          document?.removeEventListener?.('visibilitychange', onVisible)
         }
       }, [sid, enabled, intervalMs, nonce])
       return state

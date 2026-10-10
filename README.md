@@ -15,7 +15,7 @@ git clone https://github.com/TangZhiZzz/dsh-plugins.git
 
 | 包名 | 显示名 | 作用 |
 |---|---|---|
-| [`dsh-plugin-session-cost`](packages/dsh-plugin-session-cost) | 会话消费统计 | 输入框下方显示**当前会话消费金额**（点击弹出明细浮层：缓存命中/未命中/输出三段组成条 + 金额），设置页多出一页「会话消费」，列出**每个会话**的花费（含已归档的历史会话）。金额按 DeepSeek 官方公开价估算，高峰/空闲时段自动区分，价目表可在 Config 里整体替换。同一个包挂了**两行**：主行（取数路由 + UI）与 `dsh-plugin-session-cost/tools`（给 agent 的 `session_cost` 工具），可分别启停、各自配置 —— 拆行/拆包的完整说明见[包 README 第 8 节](packages/dsh-plugin-session-cost/README.md#8-同一个包挂两行可分别启停各自配置)。 |
+| [`dsh-plugin-session-cost`](packages/dsh-plugin-session-cost) | 会话消费统计 | 输入框下方显示**当前会话消费金额**（点击弹出明细浮层：缓存命中/未命中/输出三段组成条 + 金额），设置页多出一页「会话消费」，列出**每个会话**的花费（含已归档的历史会话）；另有一个 agent 工具 `session_cost`（可用 `exposeTool: false` 关掉）。金额按 DeepSeek 官方公开价估算，高峰/空闲时段自动区分，价目表可在 Config 里整体替换。徽标轮询**只读当前会话**、不折叠整个语料 —— 结构取舍与优化见[包 README 第 8 节](packages/dsh-plugin-session-cost/README.md#8-结构取舍与性能优化)。 |
 
 ## 安装
 
@@ -88,7 +88,7 @@ CI 用 `NPM_TOKEN` 提交后，版本会先进**暂存区**（新包名会先出
 | 版本 | 时间 | 说明 |
 |---|---|---|
 | [`dsh-plugin-session-cost@1.0.0`](https://www.npmjs.com/package/dsh-plugin-session-cost/v/1.0.0) | 2026-10-10 | 首个版本：输入框下方实时金额徽标 + 点击弹框明细 + 设置页「会话消费」面板（含已归档会话） |
-| `dsh-plugin-session-cost@1.1.0` | 待发布 | 同一包增加第二行 `…/tools`：给 agent 的 `session_cost` 工具（独立启停 / 独立 Config）；新增 9 项第二行单测 |
+| `dsh-plugin-session-cost@1.1.0` | 待发布 | 新增 agent 工具 `session_cost`（同一行内注册，与路由共用同一份取数与定价）；取数拆成「只读当前会话」与「整个语料」两条路径（徽标不再折叠全部会话）；新增 service/tool 两组单测（共 63 项） |
 
 ## 隐私与产物
 

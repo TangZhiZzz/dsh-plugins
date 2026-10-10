@@ -26,20 +26,19 @@
   },
   "exports": {
     ".": "./index.js",
-    "./tools": "./tools.js",
     "./client": "./client.js",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "index.js",
-    "tools.js",
+    "tool.js",
     "client.js",
     "cordis.patch.yml",
     "locale/*.json"
   ],
   "scripts": {
-    "test": "node verify/fold.test.mjs && node verify/tools.test.mjs && node verify/plugin-meta.test.mjs && node verify/client.render.test.mjs",
+    "test": "node verify/fold.test.mjs && node verify/service.test.mjs && node verify/tool.test.mjs && node verify/plugin-meta.test.mjs && node verify/client.render.test.mjs",
     "pack:check": "npm pack --dry-run",
     "prepublishOnly": "pnpm test"
   },

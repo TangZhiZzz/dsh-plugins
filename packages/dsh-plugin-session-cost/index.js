@@ -26,7 +26,12 @@
  * `@deepseek-ai/*` 解析不到（实测 ERR_MODULE_NOT_FOUND）。所以本文件不写任何静态裸导入：
  * Config 的 schema 用 best-effort 动态导入，解析不到时插件照常工作，配置改走
  * cordis.patch.yml 的原始 config（normalizeConfig 里带完整默认值与收敛）。
+ *
+ * 结构：本文件 = 纯逻辑 + 取数服务 + 路由骨架；agent 工具在 ./tool.js（**同一行**内注册，
+ * 与路由共用同一个取数服务，所以两处金额必然一致）。
  */
+
+import { registerSessionCostTool } from './tool.js'
 
 /** schemastery 的 best-effort 加载结果；undefined 表示当前组合里解析不到（不影响功能）。 */
 const SchemaModule = await (async () => {
@@ -95,6 +100,14 @@ export const Config = SchemaModule === undefined ? undefined : SchemaModule.obje
     .description('非活跃（已归档）会话折叠结果的缓存秒数。'),
   includeSubagents: Schema.boolean().default(true)
     .description('是否统计 origin=subagent 的子会话。'),
+  readConcurrency: Schema.natural().default(4)
+    .description('折叠历史会话时的并发磁盘读取上限。'),
+  exposeTool: Schema.boolean().default(true)
+    .description('是否向 agent 暴露 session_cost 工具（关掉后每次请求的工具体积更小）。'),
+  toolName: Schema.string().default('session_cost')
+    .description('agent 工具名；改这里可避免与其它插件重名。'),
+  topN: Schema.natural().default(5)
+    .description('工具不带 sessionId 时，返回花费最高的前 N 个会话。'),
 })
 
 // ── 配置规范化 ──────────────────────────────────────────────────────────────
@@ -146,6 +159,9 @@ export function normalizeConfig(config) {
     })
     .filter((w) => w.start !== undefined && w.end !== undefined)
   if (windows.length === 0) warnings.push('peakWindows 里没有合法的 HH:mm-HH:mm 窗口，已回落到官方高峰时段')
+  /** 实际生效的窗口（给端点回显用，避免再依赖原始 config）。 */
+  const effectiveWindows = windows.length > 0 ? windows : [{ start: 540, end: 720 }, { start: 840, end: 1080 }]
+  const label = (minutes) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
   return {
     currency: typeof raw.currency === 'string' && raw.currency ? raw.currency : 'CNY',
     symbol: typeof raw.symbol === 'string' ? raw.symbol : '¥',
@@ -153,6 +169,7 @@ export function normalizeConfig(config) {
     timeZone: typeof raw.timeZone === 'string' && raw.timeZone && isValidTimeZone(raw.timeZone) ? raw.timeZone : 'Asia/Shanghai',
     peakWeekdays: Array.isArray(raw.peakWeekdays) ? raw.peakWeekdays.map(Number) : [1, 2, 3, 4, 5],
     peakWindows: windows.length > 0 ? windows : [{ start: 540, end: 720 }, { start: 840, end: 1080 }],
+    peakWindowLabels: effectiveWindows.map((w) => `${label(w.start)}-${label(w.end)}`),
     offPeakFactor: Number.isFinite(raw.offPeakFactor) ? raw.offPeakFactor : 0.5,
     holidays: Array.isArray(raw.holidays)
       ? raw.holidays.map((d) => (typeof d === 'object' && d !== null && 'date' in d ? d.date : d)).map(String)
@@ -161,6 +178,10 @@ export function normalizeConfig(config) {
     refreshMs: (Number.isFinite(raw.refreshSeconds) ? Math.max(1, raw.refreshSeconds) : 5) * 1000,
     persistedCacheMs: (Number.isFinite(raw.persistedCacheSeconds) ? Math.max(0, raw.persistedCacheSeconds) : 600) * 1000,
     includeSubagents: raw.includeSubagents !== false,
+    readConcurrency: Number.isFinite(raw.readConcurrency) ? Math.max(1, Math.min(16, raw.readConcurrency)) : 4,
+    exposeTool: raw.exposeTool !== false,
+    toolName: typeof raw.toolName === 'string' && raw.toolName !== '' ? raw.toolName : 'session_cost',
+    topN: Number.isFinite(raw.topN) ? Math.max(1, Math.min(50, raw.topN)) : 5,
     warnings,
   }
 }
@@ -581,96 +602,152 @@ function isTrustedRequest(request, trustedHosts) {
   }
 }
 
-// ── 插件主体 ────────────────────────────────────────────────────────────────
+// ── 取数服务 ────────────────────────────────────────────────────────────────
 
-export function apply(ctx, config) {
-  const cfg = normalizeConfig(config)
-  /** 非活跃会话的折叠结果缓存：会话归档后日志不再变化，没必要反复解压。 */
+/**
+ * 会话消费服务：把「读会话日志 → 折叠 → 计价」收在一处，路由与 agent 工具共用同一份实现
+ * （价目表只有一份，不会漂移）。
+ *
+ * 两条取数路径：
+ *   - `summary({ sessionId })`：**只读那一个会话**。徽标每 5 秒轮询就走这条，
+ *     不会为了一个会话把 28 个会话全折叠一遍（这是本插件最实在的一处优化）。
+ *   - `summary()`：整个语料，给设置页面板用；非活跃会话的折叠结果按 `persistedCacheMs` 缓存，
+ *     并发读取上限由 `readConcurrency` 控制，单飞 + TTL 避免多页面重复计算。
+ */
+export function createCostService(ctx, cfg) {
+  /** 非活跃会话的折叠结果缓存：归档后日志不再变化，没必要反复解压。 */
   const foldCache = new Map()
-  let lastResult = null
-  let inflight = null
+  /** 单会话路径的短 TTL 缓存：同一个会话在 refreshMs 内被多个页面问也只算一次。 */
+  const sessionCache = new Map()
+  let corpusResult = null
+  let corpusInflight = null
 
-  async function collect() {
-    const records = await ctx.sessionQuery.listSessions()
+  const rateOf = (id) => ctx.get('sessions')?.get?.(id)
+
+  /** 折叠一个会话并序列化；`record` 提供 header/live。 */
+  async function foldRow(record, { cacheable }) {
+    const id = String(record?.header?.id ?? '')
+    const cached = foldCache.get(id)
+    const reusable = cacheable && cached !== undefined && Date.now() - cached.at < cfg.persistedCacheMs
+    if (reusable) return { row: serializeSession(record, cached.acc, false), error: null }
+    try {
+      const snapshot = await ctx.sessionQuery.readSession(id)
+      const acc = foldSession(snapshot, cfg)
+      if (cacheable) foldCache.set(id, { at: Date.now(), acc })
+      return { row: serializeSession(record, acc, false), error: null }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (cached !== undefined) return { row: serializeSession(record, cached.acc, true), error: null }
+      return { row: null, error: { sessionId: id, message } }
+    }
+  }
+
+  /** 单会话：只动这一个会话的日志。 */
+  async function collectSession(sessionId) {
+    const live = rateOf(sessionId)
+    const record = { header: live?.header ?? { id: sessionId }, live: live !== undefined }
+    const { row, error } = await foldRow(record, { cacheable: live === undefined })
+    const sessions = row === null ? [] : [row]
+    const totals = emptyTotals()
+    if (row !== null) accumulateTotals(totals, row)
+    totals.cost = Number(totals.cost.toFixed(6))
+    return { sessions, totals, session: row, errors: error === null ? [] : [error] }
+  }
+
+  /** 整个语料：active 会话每次都读内存日志，历史会话走缓存。 */
+  async function collectCorpus(signal) {
+    const records = await ctx.sessionQuery.listSessions(signal)
     const wanted = records.filter((record) => cfg.includeSubagents || record?.header?.origin !== 'subagent')
-    const now = Date.now()
-    const errors = []
-
-    const rows = await mapLimited(wanted, 4, async (record) => {
+    const results = await mapLimited(wanted, cfg.readConcurrency, async (record) => {
       const id = String(record?.header?.id ?? '')
       if (id === '') return null
-      const cached = foldCache.get(id)
-      const reusable = record?.live !== true && cached !== undefined && now - cached.at < cfg.persistedCacheMs
-      if (reusable) return serializeSession(record, cached.acc, false)
-      try {
-        const snapshot = await ctx.sessionQuery.readSession(id)
-        const acc = foldSession(snapshot, cfg)
-        if (record?.live !== true) foldCache.set(id, { at: now, acc })
-        return serializeSession(record, acc, false)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        errors.push({ sessionId: id, message })
-        if (cached !== undefined) return serializeSession(record, cached.acc, true)
-        return null
-      }
+      return foldRow(record, { cacheable: record?.live !== true })
     })
 
     // 清掉已经不在语料里的会话缓存，避免长期驻留。
     const liveIds = new Set(wanted.map((record) => String(record?.header?.id ?? '')))
     for (const key of foldCache.keys()) if (!liveIds.has(key)) foldCache.delete(key)
 
-    const sessions = rows.filter((row) => row !== null)
+    const sessions = results.filter((result) => result !== null && result.row !== null).map((result) => result.row)
     sessions.sort((a, b) => (b.cost - a.cost) || ((b.lastActive ?? 0) - (a.lastActive ?? 0)))
-
+    const errors = results.filter((result) => result !== null && result.error !== null).map((result) => result.error)
     const totals = emptyTotals()
     for (const session of sessions) accumulateTotals(totals, session)
     totals.cost = Number(totals.cost.toFixed(6))
-
-    return {
-      ok: true,
-      generatedAt: now,
-      currency: cfg.currency,
-      symbol: cfg.symbol,
-      decimals: cfg.decimals,
-      timeZone: cfg.timeZone,
-      pricing: {
-        source: 'DeepSeek 官方公开价（高峰时段价 / 百万 tokens），空闲时段按 offPeakFactor 折扣',
-        peakWindows: (config?.peakWindows ?? ['09:00-12:00', '14:00-18:00']).map(String),
-        peakWeekdays: cfg.peakWeekdays,
-        offPeakFactor: cfg.offPeakFactor,
-        holidays: cfg.holidays,
-        patterns: Object.keys(cfg.rates),
-        fallback: cfg.rates['*'] !== undefined ? '*' : null,
-      },
-      totals,
-      sessions,
-      errors,
-      configWarnings: cfg.warnings,
-      refreshMs: cfg.refreshMs,
-    }
+    return { sessions, totals, session: null, errors }
   }
 
-  /** 单飞 + TTL：多个页面/多个插槽同时轮询时只算一次。 */
-  function summary() {
+  /**
+   * 统一出口：两种路径返回同一种载荷形状，客户端无需分支。
+   *
+   * `signal` 只在**进入时**检查一次：语料路径的结果是「单飞 + TTL」共享给所有调用者的，
+   * 为单个调用者取消会把共享结果一起废掉，所以不往下传（会话路径本来也只读一个文件）。
+   */
+  async function summary(options = {}) {
+    const sessionId = typeof options.sessionId === 'string' && options.sessionId !== '' ? options.sessionId : null
     const now = Date.now()
-    if (lastResult !== null && now - lastResult.generatedAt < cfg.refreshMs) return Promise.resolve(lastResult)
-    if (inflight !== null) return inflight
-    inflight = collect()
-      .then((result) => {
-        lastResult = result
-        return result
-      })
-      .finally(() => {
-        inflight = null
-      })
-    return inflight
+    if (options.signal?.aborted === true) throw new Error('aborted')
+
+    if (sessionId === null) {
+      if (corpusResult !== null && now - corpusResult.generatedAt < cfg.refreshMs) return corpusResult
+      if (corpusInflight !== null) return corpusInflight
+      corpusInflight = collectCorpus()
+        .then((collected) => (corpusResult = buildPayload(collected, cfg)))
+        .finally(() => { corpusInflight = null })
+      return corpusInflight
+    }
+
+    const cached = sessionCache.get(sessionId)
+    if (cached !== undefined && now - cached.at < cfg.refreshMs) return cached.payload
+    const payload = buildPayload(await collectSession(sessionId), cfg)
+    sessionCache.set(sessionId, { at: now, payload })
+    // 单会话缓存很小（一行），但也别无限增长。
+    if (sessionCache.size > 64) sessionCache.delete(sessionCache.keys().next().value)
+    return payload
   }
+
+  return { summary, collectSession, collectCorpus }
+}
+
+/** 把收集结果包成对外载荷（两种路径同形）。 */
+function buildPayload(collected, cfg) {
+  return {
+    ok: true,
+    generatedAt: Date.now(),
+    currency: cfg.currency,
+    symbol: cfg.symbol,
+    decimals: cfg.decimals,
+    timeZone: cfg.timeZone,
+    pricing: {
+      source: 'DeepSeek 官方公开价（高峰时段价 / 百万 tokens），空闲时段按 offPeakFactor 折扣',
+      peakWindows: cfg.peakWindowLabels,
+      peakWeekdays: cfg.peakWeekdays,
+      offPeakFactor: cfg.offPeakFactor,
+      holidays: cfg.holidays,
+      patterns: Object.keys(cfg.rates),
+      fallback: cfg.rates['*'] !== undefined ? '*' : null,
+    },
+    totals: collected.totals,
+    sessions: collected.sessions,
+    session: collected.session,
+    errors: collected.errors,
+    configWarnings: cfg.warnings,
+    refreshMs: cfg.refreshMs,
+  }
+}
+
+// ── 插件主体 ────────────────────────────────────────────────────────────────
+
+export function apply(ctx, config) {
+  const cfg = normalizeConfig(config)
+  const service = createCostService(ctx, cfg)
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: ROUTE_PATH,
     handler: async (request, response) => {
-      const trustedHosts = Array.isArray(ctx.get('webRuntime')?.trustedHosts) ? ctx.get('webRuntime').trustedHosts : []
+      const webRuntime = ctx.get('webRuntime')
+      const trustedHosts = Array.isArray(webRuntime?.trustedHosts) ? webRuntime.trustedHosts : []
       if (!isTrustedRequest(request, trustedHosts)) {
         response.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
         response.end('forbidden')
@@ -682,17 +759,8 @@ export function apply(ctx, config) {
         return
       }
       try {
-        const result = await summary()
         const url = new URL(request.url ?? ROUTE_PATH, 'http://dsh.internal')
-        const sessionId = url.searchParams.get('sessionId')
-        let payload = result
-        if (sessionId !== null && sessionId !== '') {
-          const session = result.sessions.find((row) => row.id === sessionId) ?? null
-          const totals = emptyTotals()
-          if (session !== null) accumulateTotals(totals, session)
-          totals.cost = Number(totals.cost.toFixed(6))
-          payload = { ...result, totals, session, sessions: session === null ? [] : [session] }
-        }
+        const payload = await service.summary({ sessionId: url.searchParams.get('sessionId') })
         const body = Buffer.from(JSON.stringify(payload), 'utf8')
         response.writeHead(200, {
           'content-type': 'application/json; charset=utf-8',
@@ -709,4 +777,14 @@ export function apply(ctx, config) {
       }
     },
   }), 'dsh-plugin-session-cost: /dsh-session-cost/summary route')
+
+  // agent 工具挂在**同一行**里（不再单独占一行）：用作用域注入拿到 tools，
+  // 没装这个服务时插件照常工作，只是没有工具。
+  if (cfg.exposeTool && typeof ctx.inject === 'function') {
+    ctx.inject(['tools'], (scoped) => registerSessionCostTool(scoped, {
+      toolName: cfg.toolName,
+      topN: cfg.topN,
+      summary: (options) => service.summary(options),
+    }))
+  }
 }
