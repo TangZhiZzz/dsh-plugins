@@ -42,6 +42,7 @@ jobs:
           fi
           printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_PUBLISH_TOKEN" > "$RUNNER_TEMP/probe.npmrc"
           echo "token 长度：${#NPM_PUBLISH_TOKEN}"
+          echo "token 指纹（sha256 前 8 位，用于确认 secret 是否真的换过）：$(printf '%s' "$NPM_PUBLISH_TOKEN" | sha256sum | cut -c1-8)"
           npm whoami --userconfig "$RUNNER_TEMP/probe.npmrc" \
             || echo "::warning title=npm token 探测失败::whoami 未通过：token 无效、权限为 No access，或带上了多余空白"
       - name: Publish packages whose version is not on npm yet
