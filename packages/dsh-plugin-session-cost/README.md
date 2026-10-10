@@ -124,15 +124,28 @@ plugin_manager { action: "set_bundle",   target: "dsh-plugin-session-cost", enab
 plugin_manager { action: "remove_bundle", target: "dsh-plugin-session-cost" }
 ```
 
+**改了 Host 代码（`index.js` / `tools.js`）必须重启应用才生效（实测）**：`disable → enable`、
+`remove_bundle → install_bundle` 都**不会**重新 import 模块 —— 宿主的 `loader.internal` 就是
+Node 自身的 ESM 加载器，模块按 URL 缓存在进程内，首次 import 的实例会被一直复用。
+验证方式：往端点返回值里加一个 `codeGen: 3` 标记，重装后打端点 —— 标记**不出现**；
+重启应用后才出现。所以：
+
+| 改动 | 生效方式 |
+|---|---|
+| `client.js`（UI 半） | 刷新页面（F5） |
+| `index.js` / `tools.js`（Host 半） | **重启应用** |
+| `cordis.patch.yml`（加行/改 config） | 重装或重启（补丁是加载期读取的） |
+| 新增 `exports` 子路径 | **重启应用**（Node 会缓存 package.json，旧进程按旧 exports 解析） |
+
 **注意本机的一个坑（已实测）**：`plugin_manager` 对「目录 target」用 pnpm 的 `link:` 协议，
 插件运行时的真实路径仍在仓库里，Node 会从真实路径向上找 `node_modules` —— 于是
 `profile` 里的 `@deepseek-ai/*` 解析不到。所以：
 
-- 本插件**没有任何静态裸导入**，`@deepseek-ai/schemastery` 只在能解析到时才用于构造 Config 的
-  schema（best-effort 动态导入）。解析不到时插件照常工作，配置走原始 `config` 对象，
-  由 `normalizeConfig` 做默认值与收敛（非法价目条目会被丢弃并告警，不会静默按 0 计价）。
-- 这也意味着本机 `cordis_inspect_query → Config.listConfigs` 里本条目的 `status` 是 `absent`
-  （没有可投影的 schema），属于预期，不影响功能。
+- 本插件**没有任何静态裸导入**，`@deepseek-ai/schemastery` 与 `@deepseek-ai/dsh-tools`
+  都只在能解析到时使用（best-effort 动态导入）。解析不到时插件照常工作：Config 走原始 `config`
+  对象 + `normalizeConfig` 收敛，`tools.js` 只告警并让那一行 inert。
+- 本地开发时这两个 peer 用 `pnpm install` 装在包内 `node_modules`（`engines`/`peerDependenciesMeta`
+  都标了 optional），所以本机 `Config.listConfigs` 的 `status` 是 `schema`（可投影）。
 - 该插件当前生效的 profile 是 **desktop**（`~/.dsh/profiles/desktop`），不是 `web`。
 
 ---

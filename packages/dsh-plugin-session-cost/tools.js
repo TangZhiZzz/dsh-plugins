@@ -96,7 +96,10 @@ export async function collect(ctx, cfg, options = {}) {
 
   if (sessionId !== null) {
     const snapshot = await ctx.sessionQuery.readSession(sessionId)
-    const record = { header: snapshot?.session ?? { id: sessionId }, live: ctx.sessions?.get?.(sessionId) !== undefined }
+    // 别用 `ctx.sessions?.…`：cordis 对**未 inject 的服务**是「访问即抛错」，可选链救不了它；
+    // 可选服务必须走 ctx.get(name)（宿主自己的契约里也是这么写的）。
+    const live = ctx.get('sessions')?.get?.(sessionId) !== undefined
+    const record = { header: snapshot?.session ?? { id: sessionId }, live }
     rows.push(sessionRow(record, foldSession(snapshot, cfg)))
   } else {
     const records = await ctx.sessionQuery.listSessions(options.signal)

@@ -45,8 +45,15 @@ const SNAPSHOTS = {
   'session-b': { inheritedEventCount: 0, session: { id: 'session-b' }, events: [assistant(OFF_PEAK)] },
 }
 
+const LIVE_SESSIONS = new Map([['session-b', { id: 'session-b' }]])
+
+/**
+ * 假 ctx —— **刻意复刻 cordis 的硬约束**：未 inject 的服务直接访问会抛错
+ * （`ctx.sessions` 不行，可选链也救不了），可选服务只能走 `ctx.get(name)`。
+ * 这样「不小心写了 ctx.sessions?.…」这类回归会被测试当场抓住。
+ */
 function makeCtx(overrides = {}) {
-  return {
+  const base = {
     logger: { warn: () => {} },
     tools: { register: () => { throw new Error('本用例不该注册工具') } },
     sessionQuery: {
@@ -56,8 +63,15 @@ function makeCtx(overrides = {}) {
         return SNAPSHOTS[id]
       },
     },
+    get: (name) => (name === 'sessions' ? { get: (id) => LIVE_SESSIONS.get(id) } : undefined),
     ...overrides,
   }
+  return new Proxy(base, {
+    get(target, key) {
+      if (key === 'sessions') throw new Error('cannot get property "sessions" without inject')
+      return target[key]
+    },
+  })
 }
 
 const cfg = { ...normalizeConfig(undefined), topN: 5 }
@@ -107,12 +121,14 @@ check('collect：limit 生效（topN 只影响默认值）', async () => {
   assert.equal(byConfig.sessions.length, 1, '不传 limit 时用 cfg.topN')
 })
 
-check('collect：单会话模式（按事件时间判空闲价）', async () => {
+check('collect：单会话模式（按事件时间判空闲价，活跃标记走 ctx.get 而非 ctx.sessions）', async () => {
   const one = await collect(makeCtx(), cfg, { sessionId: 'session-b' })
   assert.equal(one.scope, 'session')
   assert.equal(one.sessions.length, 1)
   assert.equal(one.sessions[0].cost, OFF_PEAK_COST)
   assert.equal(one.totalCost, OFF_PEAK_COST)
+  assert.equal(one.sessions[0].live, true, 'session-b 在假 sessions 服务里 → live 应为 true')
+  // 若哪天又写成 ctx.sessions?.…，上面的 collect 会因 Proxy 抛错而直接失败
 })
 
 check('collect：单个会话读失败 → 记 notes，不抛错、不影响其它会话', async () => {
