@@ -180,15 +180,19 @@ Node 的 ESM 模块按 specifier 缓存，`plugin_manager set_bundle` 只会重�
 
 | 字段 | 默认 | 作用 |
 |---|---|---|
-| `days` | `14` | 默认时间范围天数（页面用 `?days=` 覆盖） |
-| `maxSessions` | `100` | 最多统计多少个会话（newest-first） |
-| `topN` | `8` | 模型 / 工具 / 会话排行各列前几名 |
+| `days` | `14` | 默认时间范围天数（页面用 `?days=` 覆盖），1–365 |
+| `maxSessions` | `100` | 最多统计多少个会话（newest-first），1–1000 |
+| `topN` | `8` | 模型 / 工具 / 会话排行各列前几名，1–50 |
 | `timeZone` | `Asia/Shanghai` | 把事件落到「天」「小时」所用时区（非法值回落 UTC，不报错） |
 | `includeSubagents` | `false` | 是否把子会话（`origin=subagent`）也算进来 |
-| `refreshSeconds` | `10` | 载荷缓存与页面轮询频率 |
-| `foldCacheSeconds` | `600` | 归档会话天行的缓存秒数 |
-| `liveFoldSeconds` | `3` | 活跃会话天行的缓存秒数 |
-| `readConcurrency` | `4` | 读会话日志的并发上限 |
+| `refreshSeconds` | `10` | 载荷缓存与页面轮询频率，1–600 |
+| `foldCacheSeconds` | `21600` | 归档会话天行的缓存秒数，0–604800 |
+| `liveFoldSeconds` | `5` | 活跃会话天行的缓存秒数，0–3600 |
+| `readConcurrency` | `8` | 读会话日志的并发上限，1–16 |
+| `warmUpOnStart` | `true` | 激活后在后台预热「天行」缓存，避免打开面板时等冷启动 |
+| `warmUpDelaySeconds` | `3` | 预热延后多少秒开始（避开应用自身启动高峰），0–300 |
+| `persistFolds` | `true` | 把「非活跃会话」的天行缓存到磁盘，进程重启后首次打开面板也秒开 |
+| `revalidateSeconds` | `30` | 后台轮转校验磁盘缓存的间隔（秒），0–86400 |
 
 > `config` 是**整体替换、不深合并**：覆盖时要把需要的字段都写回来。
 

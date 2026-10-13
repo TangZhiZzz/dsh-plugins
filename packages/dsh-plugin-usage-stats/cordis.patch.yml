@@ -41,5 +41,3 @@
         persistFolds: true
         # 后台轮转校验磁盘缓存的间隔（秒）：每次重折一个条目，把数字逐步收敛到最新。
         revalidateSeconds: 30
-        # 读会话日志的并发上限。
-        readConcurrency: 4
