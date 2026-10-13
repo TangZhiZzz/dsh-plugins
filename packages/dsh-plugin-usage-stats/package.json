@@ -1,0 +1,78 @@
+{
+  "name": "dsh-plugin-usage-stats",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.js",
+  "description": "用量统计：Token 用量、模型分布、工具使用、活跃时间线与会话花费，挂在左侧面板栏。",
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "dashboard",
+    "usage-stats",
+    "metrics",
+    "tokens",
+    "usage",
+    "panel"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TangZhiZzz/dsh-plugins.git",
+    "directory": "packages/dsh-plugin-usage-stats"
+  },
+  "homepage": "https://github.com/TangZhiZzz/dsh-plugins/tree/main/packages/dsh-plugin-usage-stats",
+  "bugs": {
+    "url": "https://github.com/TangZhiZzz/dsh-plugins/issues"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "metrics.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json"
+  ],
+  "scripts": {
+    "test": "node verify/metrics.test.mjs && node verify/service.test.mjs && node verify/manifest.test.mjs",
+    "pack:check": "npm pack --dry-run",
+    "prepublishOnly": "pnpm test"
+  },
+  "meta": {
+    "title": "用量统计",
+    "description": "Token 用量、模型分布、工具使用、活跃时间线与会话花费，挂在左侧面板栏。"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=22",
+    "dsh": ">=0.2.0-rc.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

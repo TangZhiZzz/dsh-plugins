@@ -1,0 +1,45 @@
+# Bundle 补丁：profile 列出本 bundle 时，把下面这行插入插件树。
+#
+# Host + Client 双半：
+#   - Host 半把会话日志**按天**折叠成与窗口无关的「天行」，再用
+#     `GET /dsh-plugin-usage-stats/metrics?days=N` 交给页面（同源、loopback / 受信 Host 才可读）；
+#   - Client 半在 `sidebar.panellist` 注册面板图标，并在 `main` 注册同 id 的面板 ——
+#     这两处 id 必须一致，宿主才会把图标和面板对上。
+#
+# 金额不在本插件里算：Client 半直接读 dsh-plugin-session-cost 的 `/dsh-session-cost/summary`，
+# 没装它就不显示金额卡片。两处各写一份定价必然漂移，所以钱只有一个来源。
+#
+# 下面这些是可调参数。在自己的 profile 补丁层里按 id 覆盖时注意：
+# config 是**整体替换、不深合并**，覆盖就要把需要的字段都写回来。
+- insert:
+    - id: usage-stats-plugin
+      name: dsh-plugin-usage-stats
+      config:
+        # 默认时间范围天数（含今天）；页面用 ?days= 覆盖，收敛到 1–365。
+        days: 14
+        # 最多统计多少个会话（newest-first）。
+        maxSessions: 100
+        # 模型 / 工具 / 会话排行各列前几名。
+        topN: 8
+        # 把事件落到「天」「小时」时使用的时区。
+        timeZone: Asia/Shanghai
+        # 是否把子会话（origin=subagent）也算进来。
+        includeSubagents: false
+        # 载荷缓存与页面轮询频率（秒）。
+        refreshSeconds: 10
+        # 归档会话「天行」的缓存秒数（默认 6 小时）：归档日志不会再变，可长期复用。
+        foldCacheSeconds: 21600
+        # 活跃会话天行的缓存秒数。实测重折只要 13–20ms，可以放宽。
+        liveFoldSeconds: 5
+        # 读会话日志的并发上限（冷启动时「读 31 个会话」是主要瓶颈）。
+        readConcurrency: 8
+        # 激活后在后台预热「天行」缓存，这样打开面板时不必等冷启动那几秒。
+        warmUpOnStart: true
+        # 预热延后多少秒开始（避开应用自身的启动高峰）。
+        warmUpDelaySeconds: 3
+        # 把「非活跃会话」的天行缓存到磁盘：进程重启后第一次打开面板也是秒开。
+        persistFolds: true
+        # 后台轮转校验磁盘缓存的间隔（秒）：每次重折一个条目，把数字逐步收敛到最新。
+        revalidateSeconds: 30
+        # 读会话日志的并发上限。
+        readConcurrency: 4

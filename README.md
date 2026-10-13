@@ -16,6 +16,7 @@ git clone https://github.com/TangZhiZzz/dsh-plugins.git
 | 包名 | 显示名 | 作用 |
 |---|---|---|
 | [`dsh-plugin-session-cost`](packages/dsh-plugin-session-cost) | 会话消费统计 | 输入框下方显示**当前会话消费金额**（点击弹出明细浮层：缓存命中/未命中/输出三段组成条 + 金额），设置页多出一页「会话消费」，列出**每个会话**的花费（含已归档的历史会话）；另有一个 agent 工具 `session_cost`（可用 `exposeTool: false` 关掉）。金额按 DeepSeek 官方公开价估算，高峰/空闲时段自动区分，价目表可在 Config 里整体替换。徽标轮询**只读当前会话**、不折叠整个语料 —— 结构取舍与优化见[包 README 第 8 节](packages/dsh-plugin-session-cost/README.md#8-结构取舍与性能优化)。 |
+| [`dsh-plugin-usage-stats`](packages/dsh-plugin-usage-stats) | 用量统计 | 9 张指标卡（调用 / Token / 命中率 / 工具 / 会话 / 活跃天 / 每次均值 / 日均 / 峰值日）、**Token 构成**（比例条 + 三段数值与占比）、**年度热力图**（最近一年，按真实星期几对齐，GitHub 贡献图那种绿色渐变，列宽自适应占满宽度，悬停出当天明细）、24 小时时段分布（按深夜/上午/下午/晚上上色）、模型分布、工具 Top、会话排行（带活跃天数）、会话花费、**逐日明细表**，挂在左侧面板栏。时间范围（7/14/30/90/365 天）在面板最上方，作用于整块面板。**快在架构**：每个会话只按天折叠一次（与窗口无关），切窗口只在天行上聚合、不再读日志（用 `readSession` 调用次数钉住）；再叠后台预热、非活跃会话天行落盘持久化与后台轮转校验，状态行直接显示聚合耗时 / 缓存复用数 / 待校验数。图形用 div + 主题 token 手绘，不引第三方图表库；**金额不算第二份**，Client 半直接读 `dsh-plugin-session-cost` 的路由，没装它就不显示金额卡片。 |
 
 ## 安装
 
